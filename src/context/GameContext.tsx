@@ -18,6 +18,8 @@ const GameContext = createContext<{
   player: number;
   result: boolean;
   level: number;
+  draw: boolean;
+  solvedGrids: number[] | null;
 } | null>(null);
 
 const GameContextProvider = ({ children }: { children: ReactNode }) => {
@@ -29,12 +31,16 @@ const GameContextProvider = ({ children }: { children: ReactNode }) => {
   const [grids, setGrids] = useState<Grids>(arr);
   const [player, setPlayer] = useState<1 | 2>(1);
   const [result, setResult] = useState<boolean>(false);
+  const [draw, setDraw] = useState<boolean>(false);
+  const [solvedGrids, setSolvedGrids] = useState<number[] | null>(null);
   const level = unit === 3 ? 1 : unit === 4 ? 2 : 3;
 
   const reset = () => {
     setGrids(Array.from({ length: unit * unit }));
     setPlayer(1);
+    setDraw(false);
     setResult(false);
+    setSolvedGrids(null);
   };
   const switchLevel: Func1 = (lvl) => {
     const unt = lvl === 1 ? 3 : lvl === 2 ? 4 : 5;
@@ -43,67 +49,77 @@ const GameContextProvider = ({ children }: { children: ReactNode }) => {
 
   const restart: Func = () => reset();
 
-  const isSolved = (index: number, axis: "x" | "y" | "z"): boolean => {
+  const isSolved = (index: number, axis: "x" | "y" | "z"): number[] | false => {
     const x = axis === "x";
     const y = axis === "y";
     let loop = true;
     let solved = true;
     let count = 1;
+
+    let solvedGrids = [index];
     while (loop && count < unit) {
-      const nextVal =
-        grids[
-          index +
-            (x
-              ? count
-              : y
-              ? count * unit
-              : index === 0
-              ? count * (unit + 1)
-              : count * (unit - 1))
-        ];
+      const i =
+        index +
+        (x
+          ? count
+          : y
+          ? count * unit
+          : index === 0
+          ? count * (unit + 1)
+          : count * (unit - 1));
+
+      const nextVal = grids[i];
+
       if (!(grids[index] === nextVal)) {
         loop = false;
         solved = false;
+        solvedGrids = [index];
         break;
       }
+
+      solvedGrids.push(i);
       count++;
     }
-    return solved;
+    return solved ? solvedGrids : false;
   };
 
   const emptyGrid = grids.some((item) => !item);
 
   const solved = (): boolean => {
     let value = player === 1 ? 1 : 2;
-    let solved = false;
+    let solvedGridsUnconstrained: false | number[] = false;
     for (let i = 0; i < unit; i++) {
       if (grids[i] === value) {
         const x = i % unit === 0;
         const y = i < unit;
         const z = i % (unit - 1) === 0;
-        solved =
+        solvedGridsUnconstrained =
           (x && isSolved(i, "x")) ||
           (y && isSolved(i, "y")) ||
           (z && isSolved(i, "z"));
-        if (solved) {
+        if (solvedGridsUnconstrained) {
           break;
         }
       }
     }
 
-    if (!solved) {
+    if (!solvedGridsUnconstrained) {
       for (let i = 1; i < unit; i++) {
         const j = i * unit;
         if (grids[j] === value) {
-          solved = isSolved(j, "x");
-          if (solved) {
+          solvedGridsUnconstrained = isSolved(j, "x");
+          if (solvedGridsUnconstrained) {
             break;
           }
         }
       }
     }
 
-    return solved;
+    if (!!solvedGridsUnconstrained) {
+      setSolvedGrids(solvedGridsUnconstrained);
+    }
+
+    return !!solvedGridsUnconstrained;
   };
 
   const press: Func1 = (index) => {
@@ -125,6 +141,9 @@ const GameContextProvider = ({ children }: { children: ReactNode }) => {
       }
       if (slvd) {
         setResult(true);
+      } else if (!emptyGrid) {
+        setDraw(true);
+        setResult(true);
       }
     }
   }, [grids, emptyGrid]);
@@ -133,7 +152,17 @@ const GameContextProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <GameContext.Provider
-      value={{ restart, switchLevel, press, grids, player, result, level }}
+      value={{
+        restart,
+        switchLevel,
+        press,
+        grids,
+        player,
+        result,
+        level,
+        draw,
+        solvedGrids,
+      }}
     >
       {children}
     </GameContext.Provider>
