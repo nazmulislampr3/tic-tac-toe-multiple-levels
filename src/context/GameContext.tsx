@@ -51,7 +51,16 @@ const GameContextProvider = ({ children }: { children: ReactNode }) => {
     let count = 1;
     while (loop && count < unit) {
       const nextVal =
-        grids[index + (x ? count : y ? count * unit : count * (unit + 1))];
+        grids[
+          index +
+            (x
+              ? count
+              : y
+              ? count * unit
+              : index === 0
+              ? count * (unit + 1)
+              : count * (unit - 1))
+        ];
       if (!(grids[index] === nextVal)) {
         loop = false;
         solved = false;
@@ -66,7 +75,6 @@ const GameContextProvider = ({ children }: { children: ReactNode }) => {
 
   const solved = (): boolean => {
     let value = player === 1 ? 1 : 2;
-    console.log({ value });
     let solved = false;
     for (let i = 0; i < unit; i++) {
       if (grids[i] === value) {
